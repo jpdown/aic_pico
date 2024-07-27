@@ -252,10 +252,20 @@ void nfc_pn5180_tx_tweak(bool enable)
 static bool nfc_detect_mifare(nfc_card_t *card)
 {
     uint8_t id[20] = { 0 };
+    uint8_t sanity_id[20] = { 0 };
     int len = sizeof(id);
 
     if (!api[nfc_module].poll_mifare ||
         !api[nfc_module].poll_mifare(id, &len)) {
+        return false;
+    }
+
+    // Poll for a second time, if we get a different MIFARE card then we can ignore the result
+    // This is done because Android devices randomize their MIFARE id on every read
+    // Pixel devices have a consistent FeliCa id that should be preferred instead
+    if (!api[nfc_module].poll_mifare ||
+        !api[nfc_module].poll_mifare(sanity_id, &len) || 
+        memcmp(id, sanity_id, len) != 0) {
         return false;
     }
 
